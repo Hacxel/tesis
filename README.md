@@ -1,6 +1,6 @@
 # tesis
 codigo utilizado en artículo para la mejora de pronósticos
-# Librerías ---------------------------------------------------------------
+Librerías ---------------------------------------------------------------
 library(xgboost)
 library(tidymodels)
 library(modeltime)
@@ -12,15 +12,15 @@ library(janitor)
 library(ggpubr)
 library(rio)
 
-# Funciones personalizadas ------------------------------------------------
+Funciones personalizadas ------------------------------------------------
 
-## Limpieza de la información ---------------------------------------------
+Limpieza de la información ---------------------------------------------
 getLimpiezaData <- function(.Data){
-  ## Empresa 1: CI
+   Empresa 1: CI
   .Data <- clean_names(.Data, "big_camel") %>% 
     rename(Fecha = ends_with("FechaCorta"))
   
-  # Formato Fecha
+   Formato Fecha
   dbDataClean <- .Data %>% 
     mutate(Mes = map_chr(Fecha, 
                          function(x){
@@ -46,40 +46,40 @@ getLimpiezaData <- function(.Data){
 }
 
 
-## Limpieza de la información ---------------------------------------------
+ Limpieza de la información ---------------------------------------------
 
-## Pipeline Forcast -------------------------------------------------------
+ Pipeline Forcast -------------------------------------------------------
 
 
 getForcastReport <- function(.Data, .Empresa = "", .VariableFecha, .VariableCantidad,
                              .MesesPrediccion = 3){
   
-  # Renombre de las variables
+ Renombre de las variables
   .Data <- .Data %>% 
     rename(Cantidad = .VariableCantidad,
            Fecha = .VariableFecha)
   
-  # Parámetro plots de plotly (interactive) a ggplot (static)
+   Parámetro plots de plotly (interactive) a ggplot (static)
   interactive <- FALSE
   
-  # Split data --------------------------------------------------------------
+   Split data --------------------------------------------------------------
   
-  # Split Data 80/20
+   Split Data 80/20
   cat("Split data (Entrenamiento 80% - Test 20%)\n"); cat("\n")
   splits <- initial_time_split(.Data, prop = 1 - (.MesesPrediccion/nrow(.Data)))
   
-  # Modelos -----------------------------------------------------------------
+   Modelos -----------------------------------------------------------------
   cat("Modelos forcast (8)\n"); cat("\n")
   
-  ## Model 1: auto_arima ----
-  # Auto ARIMA (Modeltime)
+  Model 1: auto_arima ----
+  Auto ARIMA (Modeltime)
   cat("     (1/8) Auto ARIMA (Modeltime)\n")
   model_fit_arima_no_boost <- arima_reg() %>%
     set_engine(engine = "auto_arima") %>%
     fit(Cantidad ~ Fecha, data = training(splits))
   
-  ## Model 2: arima_boost ----
-  # Boosted Auto ARIMA (Modeltime)
+  Model 2: arima_boost ----
+  Boosted Auto ARIMA (Modeltime)
   cat("     (2/8) Boosted Auto ARIMA (Modeltime)\n")
   model_fit_arima_boosted <- arima_boost(
     min_n = 2,
@@ -93,32 +93,32 @@ getForcastReport <- function(.Data, .Empresa = "", .VariableFecha, .VariableCant
         data = training(splits))
   
   
-  ## Model 3: ets ----
-  # Suavizado exponencial (Modeltime)
+   Model 3: ets ----
+   Suavizado exponencial (Modeltime)
   cat("     (3/8) Suavizado exponencial (Modeltime)\n")
   model_fit_ets <- exp_smoothing() %>%
     set_engine(engine = "ets") %>%
     fit(Cantidad ~ Fecha, data = training(splits))
   
   
-  ## Model 4: prophet ----
-  # Prophet (Modeltime)
+   Model 4: prophet ----
+   Prophet (Modeltime)
   cat("     (4/8) Prophet (Modeltime)\n")
   model_fit_prophet_no_boost <- prophet_reg() %>%
     set_engine(engine = "prophet") %>%
     fit(Cantidad ~ Fecha, data = training(splits))
   
   
-  ## Model 5: Prophet Boost ----
-  # Prophet Boost (Modeltime)
+   Model 5: Prophet Boost ----
+   Prophet Boost (Modeltime)
   cat("     (5/8) Prophet Boost (Modeltime)\n")
   model_fit_prophet_boost <- prophet_boost() %>%
     set_engine(engine = "prophet_xgboost") %>%
     fit(Cantidad ~ Fecha, data = training(splits))
   
   
-  ## Model 6: lm ----
-  # Linear Regression (Parsnip)
+   Model 6: lm ----
+   Linear Regression (Parsnip)
   cat("     (6/8) Linear Regression (Parsnip)\n")
   model_fit_lm <- linear_reg() %>%
     set_engine("lm") %>%
@@ -128,8 +128,8 @@ getForcastReport <- function(.Data, .Empresa = "", .VariableFecha, .VariableCant
         data = training(splits))
   
   
-  ## Model 7: earth ----
-  # MARS (Workflow)
+   Model 7: earth ----
+   MARS (Workflow)
   cat("     (7/8) MARS (Workflow)\n")
   model_spec_mars <- mars(mode = "regression") %>%
     set_engine("earth") 
@@ -148,8 +148,8 @@ getForcastReport <- function(.Data, .Empresa = "", .VariableFecha, .VariableCant
     fit(training(splits))
   
   
-  ## Model 8: Random Forest ----
-  # Random Forest (Workflow)
+   Model 8: Random Forest ----
+   Random Forest (Workflow)
   cat("     (8/8) Random Forest (Workflow)\n"); cat("\n")
   model_spec_rf <- rand_forest(trees = 200) %>%
     set_engine("randomForest")
@@ -160,9 +160,9 @@ getForcastReport <- function(.Data, .Empresa = "", .VariableFecha, .VariableCant
     fit(training(splits))
   
   
-  # 3. Tabla de modelos ------------------------------------------------------
+   3. Tabla de modelos ------------------------------------------------------
   
-  # Tabla de modelos a estimar
+   Tabla de modelos a estimar
   models_tbl <- modeltime_table(
     model_fit_arima_no_boost,
     model_fit_arima_boosted,
@@ -175,15 +175,15 @@ getForcastReport <- function(.Data, .Empresa = "", .VariableFecha, .VariableCant
   )
   
   
-  # 4. Calibración de los modelos -------------------------------------------
+   4. Calibración de los modelos -------------------------------------------
   cat("Calibracion de los modelos\n"); cat("\n")
   calibration_tbl <- models_tbl %>%
     modeltime_calibrate(new_data = testing(splits))
   
   
-  # 5. Pronóstico del conjunto de pruebas y evaluación de la precisión --------
+   5. Pronóstico del conjunto de pruebas y evaluación de la precisión --------
   
-  # Plot forcasts
+   Plot forcasts
   (forcast_plot <- calibration_tbl %>%
      modeltime_forecast(
        new_data    = testing(splits),
@@ -194,7 +194,7 @@ getForcastReport <- function(.Data, .Empresa = "", .VariableFecha, .VariableCant
        .interactive      = interactive
      ))
   
-  # Table plot
+   Table plot
   cat("Evaluacion de los modelos\n"); cat("\n")
   calibration_tbl %>%
     modeltime_accuracy() %>%
@@ -209,13 +209,13 @@ getForcastReport <- function(.Data, .Empresa = "", .VariableFecha, .VariableCant
     ggtexttable(rows = NULL, theme = ttheme("mBlueWhite")) %>% 
     tab_add_hline(at.row = 1:2, row.side = "top", linewidth = 2)
   
-  # Plot results
+   Plot results
   figure <- ggarrange(forcast_plot, table_plot,
                       ncol = 1, nrow = 2)
   
   plot(figure)
   
-  # Save plot forcast test
+   Save plot forcast test
   cat("Guardando reporte de resultados\n"); cat("\n")
   png(file= paste("reports/Resultados forcast empresa ", .Empresa, " ", Sys.Date(), " (",.MesesPrediccion, " meses).png", sep = ""),
       width=1400, height=750)
@@ -223,9 +223,9 @@ getForcastReport <- function(.Data, .Empresa = "", .VariableFecha, .VariableCant
   dev.off()
   
   
-  # 6. Forcast --------------------------------------------------------------
+   6. Forcast --------------------------------------------------------------
   
-  # Modelo con menor error
+   Modelo con menor error
   cat("Forcast\n"); cat("\n")
   MejorModelo <- calibration_tbl %>%
     modeltime_accuracy() %>% 
@@ -246,7 +246,7 @@ getForcastReport <- function(.Data, .Empresa = "", .VariableFecha, .VariableCant
   cat(paste("Seleccion mejor modelo forcast:", MejorModeloNombre, "\n")); cat("\n")
   
   
-  # Selección de estructura de datos para mejor modelo
+   Selección de estructura de datos para mejor modelo
   if(MejorModelo%in%c(1, 3, 4, 5, 7, 8)){
     dataForcast <- .Data
   } else if(MejorModelo==2){
@@ -262,9 +262,9 @@ getForcastReport <- function(.Data, .Empresa = "", .VariableFecha, .VariableCant
                 factor(quarter(Fecha), labels = TRUE, ordered = F))
   }
   
-  # Forcast
+   Forecast
   cat("Guardando resultados del Forcast\n"); cat("\n")
-  ## Tabla
+   Tabla
   tbForcast <- calibration_tbl %>%
     # Seleccion del mejor modelo
     filter(.model_id == MejorModelo) %>%
@@ -272,12 +272,12 @@ getForcastReport <- function(.Data, .Empresa = "", .VariableFecha, .VariableCant
     modeltime_refit(.Data) %>%
     modeltime_forecast(h = paste(.MesesPrediccion, "months"), actual_data = .Data)
   
-  ## Plot
+   Plot
   plot_forcast <- plot_modeltime_forecast(tbForcast, .interactive = FALSE)
   plot(plot_forcast)
   
-  # Exportar forcast
-  ## Save forcast
+   Exportar forcast
+   Save forcast
   tbForcastReport = select(tbForcast,
                            Dato = .key, Fecha = .index, Valor = .value) %>% 
     mutate(Dato = ifelse(Dato=="prediction", 'forcast', "dato"))
@@ -285,12 +285,12 @@ getForcastReport <- function(.Data, .Empresa = "", .VariableFecha, .VariableCant
   export(tbForcastReport, 
          paste("forcast/Forcast empresa ", .Empresa, " ", Sys.Date(), " (", .MesesPrediccion, " meses).xlsx", sep = ""))
   
-  ## Save plot forcast test
+   Save plot forcast test
   png(file= paste("forcast/Forcast empresa ", .Empresa, " ", Sys.Date(), " (",.MesesPrediccion, " meses).png", sep = ""),
       width=1400, height=750)
   plot(plot_forcast)
   dev.off()
   
-  # View plot results
+   View plot results
   return(tbForcastReport)
 }
