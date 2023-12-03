@@ -151,7 +151,7 @@ getForcastReport <- function(.Data, .Empresa = "", .VariableFecha, .VariableCant
    Model 8: Random Forest ----
    Random Forest (Workflow)
   cat("     (8/8) Random Forest (Workflow)\n"); cat("\n")
-  model_spec_rf <- rand_forest(trees = 200) %>%
+  model_spec_rf <- rand_forest(trees = 500, mode = "regression") %>%
     set_engine("randomForest")
   
   wflw_fit_rf <- workflow() %>%
